@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { useSession } from "next-auth/react"
-import { collection, store, addDoc, serverTimestamp } from "./../firebase"
+import { collection, store, addDoc, updateDoc, documentRef, serverTimestamp, bucketRef, storage, getDownloadURL, uploadString } from "./../firebase"
 import {
     EmojiHappyIcon,
     CameraIcon,
@@ -25,13 +25,24 @@ function InputBox() {
             email: session?.user?.email,
             image: session?.user?.image,
             timestamp: serverTimestamp(),
+        }).then(post => {
+            if (imageToPost) {
+                const uploadTask = uploadString(bucketRef(storage, `posts/${post.id}`), imageToPost, "data_url")
+                uploadTask.then(image => {
+                    getDownloadURL(image.ref).then(downloadUrl => {
+                        updateDoc(documentRef(store, post.path), {
+                            postImage: downloadUrl,
+                        })
+                        removeImageFromPost();
+                    })
+                })
+            }
         })
 
         inputRef.current.value = "";
     }
 
     const addImageToPost = (e) => {
-        e.preventDefault();
         const reader = new FileReader();
         if (e.target.files[0]) {
             reader.readAsDataURL(e.target.files[0]);
